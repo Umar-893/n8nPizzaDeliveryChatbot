@@ -1,0 +1,344 @@
+{
+  "name": "AI-Powered Pizza Delivery Chatbot with Order Management and Status Tracking",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "options": {
+          "loadPreviousSession": "memory"
+        }
+      },
+      "id": "db4a3c90-5ce6-45a2-a843-2a70826437b1",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        1872,
+        512
+      ],
+      "webhookId": "62beb909-9363-4bb7-ba7f-3b09c5d34e74"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are a helpful pizza delivery chatbot assistant for a pizza restaurant.\n\nYour responsibilities:\n1. Answer customer questions about the pizza menu using the Get Menu Tool\n2. Take accurate pizza orders by capturing pizza type, quantity, and customer details (name, address, phone) using the Create Order Tool\n3. Provide real-time order status updates when customers ask about their orders using the Check Order Status Tool\n\nGuidelines:\n- Be friendly, conversational, and helpful\n- Always confirm order details before submitting\n- Ask for missing information (customer name, address, phone number) when taking orders\n- Use the appropriate tool for each task\n- Keep responses concise and clear"
+        }
+      },
+      "id": "4d6232b7-8889-460f-bb6a-345ac999743f",
+      "name": "Pizza Chatbot Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        2344,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "1ee98c6c-1938-4137-b352-e7ae3da37912",
+      "name": "OpenAI GPT-4.1-mini",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2224,
+        736
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "RgbZWQPXByEhjEJN",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 10
+      },
+      "id": "efcb07ad-5334-474f-9fc0-3630d0ffbe6a",
+      "name": "Conversation Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1944,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "path": "pizza-menu",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "fcbf1490-eb76-4fa4-a505-62e9ed263e35",
+      "name": "Menu API Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1872,
+        944
+      ],
+      "webhookId": "470a8149-05de-439d-9f1e-fbb00c674ef0"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "menu",
+              "value": "[{\"name\": \"Margherita Pizza\", \"sizes\": [{\"size\": \"Small\", \"price\": 8.99}, {\"size\": \"Medium\", \"price\": 12.99}, {\"size\": \"Large\", \"price\": 15.99}]}, {\"name\": \"Pepperoni Pizza\", \"sizes\": [{\"size\": \"Small\", \"price\": 9.99}, {\"size\": \"Medium\", \"price\": 13.99}, {\"size\": \"Large\", \"price\": 16.99}]}, {\"name\": \"Vegetarian Pizza\", \"sizes\": [{\"size\": \"Small\", \"price\": 9.49}, {\"size\": \"Medium\", \"price\": 13.49}, {\"size\": \"Large\", \"price\": 16.49}]}, {\"name\": \"BBQ Chicken Pizza\", \"sizes\": [{\"size\": \"Small\", \"price\": 10.99}, {\"size\": \"Medium\", \"price\": 14.99}, {\"size\": \"Large\", \"price\": 17.99}]}, {\"name\": \"Hawaiian Pizza\", \"sizes\": [{\"size\": \"Small\", \"price\": 9.99}, {\"size\": \"Medium\", \"price\": 13.99}, {\"size\": \"Large\", \"price\": 16.99}]}]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ba005188-fa0b-49da-8125-0f5d96f0444c",
+      "name": "Menu Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2096,
+        944
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "96ef573d-a5b8-4f3b-9578-8ba59516da80",
+      "name": "Return Menu",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2320,
+        944
+      ]
+    },
+    {
+      "parameters": {
+        "multipleMethods": true,
+        "path": "pizza-orders",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "e9a5aa47-fea3-4730-aab1-d5c7d66164bd",
+      "name": "Order API Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1872,
+        1168
+      ],
+      "webhookId": "10812678-d09d-4690-8085-7b8133ca8055"
+    },
+    {
+      "parameters": {
+        "jsCode": "// In-memory order storage (persists during workflow execution)\nif (!$execution.customData) {\n  $execution.customData = {\n    orders: {},\n    orderCounter: 1000\n  };\n}\n\n// Get the webhook request data\nconst webhookData = $input.first().json;\nconst method = webhookData.method || webhookData.httpMethod || 'GET';\nconst body = webhookData.body || {};\nconst query = webhookData.query || {};\n\nlet response = {};\n\nif (method === 'POST') {\n  // Create new order\n  const orderId = `ORD-${$execution.customData.orderCounter++}`;\n  \n  const newOrder = {\n    orderId: orderId,\n    pizzaType: body.pizzaType,\n    quantity: body.quantity,\n    customerName: body.customerName,\n    customerAddress: body.customerAddress,\n    customerPhone: body.customerPhone,\n    status: 'confirmed',\n    createdAt: new Date().toISOString(),\n    estimatedDelivery: new Date(Date.now() + 30 * 60000).toISOString() // 30 minutes from now\n  };\n  \n  $execution.customData.orders[orderId] = newOrder;\n  \n  response = {\n    success: true,\n    message: `Order ${orderId} created successfully!`,\n    order: newOrder\n  };\n  \n} else if (method === 'GET' && query.orderId) {\n  // Check order status\n  const orderId = query.orderId;\n  const order = $execution.customData.orders[orderId];\n  \n  if (order) {\n    response = {\n      success: true,\n      order: order\n    };\n  } else {\n    response = {\n      success: false,\n      message: `Order ${orderId} not found`\n    };\n  }\n  \n} else {\n  response = {\n    success: false,\n    message: 'Invalid request'\n  };\n}\n\nreturn { json: response };"
+      },
+      "id": "c9ad5a6d-2195-4c89-a4d4-52737ef65aad",
+      "name": "Order Management Logic",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2096,
+        1168
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "e39080d3-0e57-4896-9b69-7ee0f9cbf567",
+      "name": "Return Order Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2320,
+        1168
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Retrieves the current pizza menu with available pizzas, sizes, and prices",
+        "jsCode": "// Return hardcoded pizza menu data\nconst menu = [\n  {\n    \"name\": \"Margherita Pizza\",\n    \"sizes\": [\n      {\"size\": \"Small\", \"price\": 8.99},\n      {\"size\": \"Medium\", \"price\": 12.99},\n      {\"size\": \"Large\", \"price\": 15.99}\n    ]\n  },\n  {\n    \"name\": \"Pepperoni Pizza\",\n    \"sizes\": [\n      {\"size\": \"Small\", \"price\": 9.99},\n      {\"size\": \"Medium\", \"price\": 13.99},\n      {\"size\": \"Large\", \"price\": 16.99}\n    ]\n  },\n  {\n    \"name\": \"Vegetarian Pizza\",\n    \"sizes\": [\n      {\"size\": \"Small\", \"price\": 9.49},\n      {\"size\": \"Medium\", \"price\": 13.49},\n      {\"size\": \"Large\", \"price\": 16.49}\n    ]\n  },\n  {\n    \"name\": \"BBQ Chicken Pizza\",\n    \"sizes\": [\n      {\"size\": \"Small\", \"price\": 10.99},\n      {\"size\": \"Medium\", \"price\": 14.99},\n      {\"size\": \"Large\", \"price\": 17.99}\n    ]\n  },\n  {\n    \"name\": \"Hawaiian Pizza\",\n    \"sizes\": [\n      {\"size\": \"Small\", \"price\": 9.99},\n      {\"size\": \"Medium\", \"price\": 13.99},\n      {\"size\": \"Large\", \"price\": 16.99}\n    ]\n  }\n];\n\n// Return the menu as a formatted string\nreturn JSON.stringify(menu, null, 2);"
+      },
+      "id": "7d2dccb7-8f86-4cee-bf1d-26ce4baf5c9e",
+      "name": "Get Menu Tool1",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        2352,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Creates a new pizza order. Requires: pizzaType, quantity, customerName, customerAddress, customerPhone",
+        "jsCode": "// Extract input\nconst { pizzaType, quantity, customerName, customerAddress, customerPhone } = $input.item.json;\n\n// Validate required fields\nif (!pizzaType || !quantity || !customerName || !customerAddress || !customerPhone) {\n  return \"Missing required order information.\";\n}\n\n// Generate a simple order ID\nconst orderId = `ORD-${Math.floor(Math.random() * 90000) + 10000}`;\n\n// Create order object\nconst newOrder = {\n  orderId,\n  pizzaType,\n  quantity,\n  customerName,\n  customerAddress,\n  customerPhone,\n  status: \"confirmed\",\n  createdAt: new Date().toISOString(),\n  estimatedDelivery: new Date(Date.now() + 30 * 60000).toISOString()\n};\n\n// Return plain text string (AI Agent requirement)\nreturn (\n  `Order ${orderId} created successfully!\\n` +\n  `Pizza: ${quantity} x ${pizzaType}\\n` +\n  `Customer: ${customerName}\\n` +\n  `Address: ${customerAddress}\\n` +\n  `Estimated Delivery: ${new Date(newOrder.estimatedDelivery).toLocaleTimeString()}\\n` +\n  `Track using Order ID: ${orderId}`\n);\n",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n\t\"pizzaType\": \"Margherita Pizza\",\n\t\"quantity\": 2,\n\t\"customerName\": \"John Doe\",\n\t\"customerAddress\": \"123 Main St, Apt 4B\",\n\t\"customerPhone\": \"555-1234\"\n}"
+      },
+      "id": "1cb91567-ee0d-490e-8401-e417958aa0c5",
+      "name": "Create Order Tool1",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        2480,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Checks the status of an existing order. Requires: orderId",
+        "jsCode": "// Check order status by orderId\nconst orderId = query;\n\n// Access the order storage from execution context\nif (!$execution.customData || !$execution.customData.orders) {\n  return 'No orders found in the system.';\n}\n\nconst order = $execution.customData.orders[orderId];\n\nif (!order) {\n  return `Order ${orderId} not found. Please check the order ID and try again.`;\n}\n\n// Return order status information\nreturn `Order Status for ${orderId}:\n- Pizza: ${order.pizzaType}\n- Quantity: ${order.quantity}\n- Customer: ${order.customerName}\n- Delivery Address: ${order.customerAddress}\n- Phone: ${order.customerPhone}\n- Status: ${order.status}\n- Estimated Delivery: ${new Date(order.estimatedDelivery).toLocaleString()}`;"
+      },
+      "id": "c5d90b1d-5909-4648-8388-8e2a92cde889",
+      "name": "Check Order Status Tool1",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        2608,
+        736
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Chat Trigger": {
+      "main": [
+        [
+          {
+            "node": "Pizza Chatbot Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI GPT-4.1-mini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Pizza Chatbot Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversation Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Pizza Chatbot Agent",
+            "type": "ai_memory",
+            "index": 0
+          },
+          {
+            "node": "Chat Trigger",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Menu API Webhook": {
+      "main": [
+        [
+          {
+            "node": "Menu Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Menu Data": {
+      "main": [
+        [
+          {
+            "node": "Return Menu",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Order API Webhook": {
+      "main": [
+        [
+          {
+            "node": "Order Management Logic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Order Management Logic": {
+      "main": [
+        [
+          {
+            "node": "Return Order Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Menu Tool1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Pizza Chatbot Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Order Tool1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Pizza Chatbot Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Order Status Tool1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Pizza Chatbot Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "9ec2046b-fb2a-4bc1-b538-cb8d0323ce5a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5b299a6b21926eb92d0e539939abd1d1f19207b2193206b7598f978777be0d77"
+  },
+  "id": "Hi4iPg3h84WmZz7j",
+  "tags": []
+}
